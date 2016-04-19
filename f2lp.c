@@ -2,7 +2,7 @@
     f2lp.c - This program turns first order formulas to 
              answer set programs under the stable model semantics.    
 
-    version 1.3         22-Apr-2013
+    version 1.4         18-Apr-2016
 
     Copyright (C) <2009>  <Joohyung Lee and Ravi Palla>
                 All rights reserved.
@@ -34,7 +34,7 @@
 #include <limits.h>
 #include <ctype.h>
 
-#define VERSION "f2lp version 1.3"
+#define VERSION "f2lp version 1.4"
 #define USAGE "f2lp [input_file_1] . . . [input_file_n]\n"
 #define NOINPUTFILE "if no input files are provided, then STDIN is considered.\n" 
 #define OPTION_HELP "usage information: -h --h -help --help\n"
@@ -4811,6 +4811,11 @@ int             inLua = 0;//ADDED
 int             outLua = 0;//ADDED
 int				inASP = 0;//ADDED
 int				outASP = 0;//ADDED
+
+//Samidh
+int 			inPython = 0;
+int 			outPython = 0;
+
 int             size_incr = 0;
 int             solver_supported = 0;
 int             comment = 0;
@@ -4854,6 +4859,11 @@ char beginlua[] = "#begin_lua";//ADDED
 char endlua[] = "#end_lua.";//ADDED
 char beginASP[] = "#begin_asp";//ADDED
 char endASP[] = "#end_asp.";//ADDED
+
+//Samidh
+char beginpython[] = "#begin_python";
+char endpython[] = "#end_python.";
+
 //char f2lpluabegin[] = "#f2lp_lua_begin";//ADDED
 //char f2lpluaend[] = "#f2lp_lua_end";//ADDED
 		
@@ -5293,6 +5303,43 @@ do
 	//ADDED THE ABOVE
 
 
+	//Samidh
+
+	if ( (readBuf == '#') && (comment == 0) && inPython == 0)
+ 	{
+ 		inPython++  ;//This might be the start of an asp begin tag
+ 	}
+ 
+ 	if ( (readBuf != '#') && (comment == 0) && inPython > 0 && inPython < 13)
+ 	{
+ 		if (beginpython[inPython] == readBuf)
+ 			inPython++;//this continues to look like an asp begin tag
+ 		else 
+ 			inPython = 0;//this is not an asp begin tag, wipe the value clean
+ 	}
+ 
+ 	if ( (readBuf == '#') && (comment == 0) && inPython == 13)//now that we have seen an asp begin tag
+ 	{
+ 
+ 		outPython++;//this might be an asp end tag
+ 	}
+ 
+ 	if ( (readBuf != '#') && (comment == 0) && outPython > 0 && outPython < 12)
+ 	{
+ 		
+ 		if (endpython[outPython] == readBuf)
+ 			outPython++;//this continues to look like an asp end tag
+ 		else 
+ 			outPython = 0;//this is not an asp end tag, wipe the value clean
+ 		if(outPython == 12)//this was a full asp end tag
+ 		{
+ 			outPython = 0;//we are no longer in an asp section, return to reading as normal
+ 			line[line_index++]='.';//need to add this period since the blow logic will ignore the period on the end asp tag
+ 			outPython = 0;
+ 		}
+ 	}
+ 	//ADDED THE ABOVE - Samidh
+
 
 	if ( (readBuf != '.') || (paran_count != 0) || (flower_paran_count != 0) || (square_paran_count != 0) || (inLua != 0) || (inASP != 0) )//CHANGED THIS; when in a lua/asp section, we need to consume all symbols--specifically periods.
 		line[line_index++] = readBuf;
@@ -5596,6 +5643,70 @@ if (readBuf == '#')
 		}
 		continue;
 	}//ADDED
+
+	//Samidh : Added below for correct handling of begin_python
+ 	if(isEqual(line,line_index,"begin_python"))	
+ 	{
+ 
+ 		line_index = line_index + 12;//skip over the #begin_python tag
+ 		readBuf = line[line_index];
+ 		ret = fwrite(&beginpython,1,13,fpSolverInput);//write the ASP #begin_python tag
+ 		
+ 		if ( ret == 0 )
+ 		{
+ 			fprintf(stderr,"write to output failed\n");
+ 			exit(1);
+ 		}
+ 		/* copy to output and ignore until end of lua block */
+ 		do
+ 		{
+ 			ret = fwrite(&readBuf,1,1,fpSolverInput);
+ 			if ( ret == 0 )
+ 			{
+ 				fprintf(stderr,"write to output failed\n");
+ 				exit(1);
+ 			}
+ 			readBuf = line[++line_index];	
+ 			//line_index  ;
+ 			if (line_index == line_size)
+ 			{
+ 				/* write the last character */
+ 				ret = fwrite(&readBuf,1,1,fpSolverInput);
+ 				if ( ret == 0 )
+ 				{
+ 					fprintf(stderr,"write to output failed\n");
+ 					exit(1);
+ 				}
+ 				break;
+ 			}
+ 			
+ 		}while(!isEqual(line,line_index,"#end_python."));
+ 
+ 		if(isEqual(line,line_index,"#end_python."))
+ 		{
+ 			line_index = line_index + 12;//skip over the f2lp_end_python tag
+ 			
+ 			ret = fwrite(&endpython,1,12,fpSolverInput);//write the ASP #end_python. tag
+ 			if ( ret == 0 )
+ 			{
+ 				fprintf(stderr,"write to output failed\n");
+ 				exit(1);
+ 			}
+ 		}
+ 		else
+ 		{	
+ 			fprintf(stderr,"Failed to find end of python block\n");
+ 			exit(1);
+ 		}
+ 
+ 		ret = fwrite("\n",1,1,fpSolverInput);
+ 		if ( ret == 0 )
+ 		{
+ 			fprintf(stderr,"write to output failed\n");
+ 			exit(1);
+ 		}
+ 		continue;
+ 	}//ADDED
 
 
 
