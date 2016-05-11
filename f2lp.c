@@ -2,7 +2,7 @@
     f2lp.c - This program turns first order formulas to 
              answer set programs under the stable model semantics.    
 
-    version 1.3         22-Apr-2013
+    version 1.4         22-Apr-2016
 
     Copyright (C) <2009>  <Joohyung Lee and Ravi Palla>
                 All rights reserved.
@@ -34,7 +34,7 @@
 #include <limits.h>
 #include <ctype.h>
 
-#define VERSION "f2lp version 1.3"
+#define VERSION "f2lp version 1.4"
 #define USAGE "f2lp [input_file_1] . . . [input_file_n]\n"
 #define NOINPUTFILE "if no input files are provided, then STDIN is considered.\n" 
 #define OPTION_HELP "usage information: -h --h -help --help\n"
